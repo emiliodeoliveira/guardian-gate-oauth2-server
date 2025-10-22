@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+import os
 
 db = SQLAlchemy()
 
@@ -8,11 +9,14 @@ db = SQLAlchemy()
 def create_app():
     app = Flask(__name__, static_folder='static')
 
-    # These variables will be removed in the v1.1
-    app.config['SECRET_KEY'] = 'R0JHkAVv2gZbIREwpsErsRqEzJh'
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
-    app.config["SQLALCHEMY_ECHO"] = True
-    app.config["SQLALCHEMY_RECORD_QUERIES"] = True
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///test.db')
+    app.config['SQLALCHEMY_ECHO'] = os.environ.get('SQLALCHEMY_ECHO', 'False') == 'True'
+    app.config['SQLALCHEMY_RECORD_QUERIES'] = os.environ.get('SQLALCHEMY_RECORD_QUERIES', 'False') == 'True'
+
+    # Allow insecure transport for development only when explicitly set.
+    if os.environ.get('AUTHLIB_INSECURE_TRANSPORT') == '1':
+        os.environ['AUTHLIB_INSECURE_TRANSPORT'] = '1'
 
     db.init_app(app)
 
@@ -41,5 +45,26 @@ def create_app():
 
     from .main import main as main_blueprint
     app.register_blueprint(main_blueprint)
+
+    from .oauth2 import config_oauth
+    config_oauth(app)
+
+    try:
+        import importlib
+        flasgger = importlib.import_module('flasgger')
+        Swagger = getattr(flasgger, 'Swagger')
+        Swagger(app)
+    except Exception:
+        # Flasgger not installed. API docs will be unavailable.
+        pass
+
+    try:
+        import importlib
+        flask_migrate = importlib.import_module('flask_migrate')
+        Migrate = getattr(flask_migrate, 'Migrate')
+        migrate = Migrate()
+        migrate.init_app(app, db)
+    except Exception:
+        pass
 
     return app
