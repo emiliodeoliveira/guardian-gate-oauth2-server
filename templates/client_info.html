@@ -70,7 +70,12 @@
                     <div class="card">
                         <div class="card-content">
                             <div class="content">
-                                <h4>{{ client.client_secret }}</h4>
+                                {# Show one-time raw secret if available; otherwise show a placeholder. #}
+                                {% if one_time_secret %}
+                                    <h4>{{ one_time_secret }}</h4>
+                                {% else %}
+                                    <h4>(stored and hashed — not displayed)</h4>
+                                {% endif %}
                             </div>
                         </div>
                     </div>

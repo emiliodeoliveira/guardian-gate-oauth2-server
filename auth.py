@@ -5,6 +5,7 @@ from .models import User
 from datetime import datetime
 from . import db
 import uuid
+from sqlalchemy.exc import IntegrityError
 
 auth = Blueprint('auth', __name__)
 
@@ -42,9 +43,9 @@ def signup_post():
     name = request.form.get('name')
     password = request.form.get('password')
 
-    user_data = User.query.filter_by(email=email).first
+    user_data = User.query.filter_by(email=email).first()
 
-    if user_data == email:
+    if user_data is not None:
         flash('This email address already exists')
         return redirect(url_for('auth.signup'))
 
@@ -55,8 +56,13 @@ def signup_post():
                     date_created=datetime.utcnow()
                     )
 
-    db.session.add(new_user)
-    db.session.commit()
+    try:
+        db.session.add(new_user)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        flash('This email address already exists')
+        return redirect(url_for('auth.signup'))
 
     return redirect(url_for('auth.login'))
 
